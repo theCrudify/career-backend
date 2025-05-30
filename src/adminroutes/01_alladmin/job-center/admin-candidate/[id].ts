@@ -13,6 +13,29 @@ const convertBigIntToString = (data: any) => {
   );
 };
 
+/**
+ * Helper function untuk normalize file path
+ */
+const normalizeFilePath = (filePath: string | null): string | null => {
+  if (!filePath) return null;
+  
+  // Remove leading slash if exists
+  const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+  
+  // If path already starts with proper format, return as is
+  if (cleanPath.startsWith('app/public/')) {
+    return cleanPath;
+  }
+  
+  // If path starts with upload/, add app/public/ prefix
+  if (cleanPath.startsWith('upload/')) {
+    return `app/public/${cleanPath}`;
+  }
+  
+  // Default format for other paths
+  return `app/public/upload/${cleanPath}`;
+};
+
 // Template email untuk notifikasi status kandidat
 function candidateStatusEmail(data: {
   full_name: string;
@@ -294,6 +317,21 @@ export const get = async (req: Request, res: Response) => {
       });
     }
 
+    // Normalize file paths untuk semua dokumen
+    const candidate = sanitizedCandidateData[0];
+    const fileFields = [
+      'file_foto', 'cv', 'file_ktp', 'file_kk', 'file_npwp', 
+      'file_transkrip', 'file_ijazah', 'file_foto_formal', 
+      'file_skck', 'file_bpjs_kerja', 'file_bpjs_sehat', 
+      'file_rekening', 'file_sim_a', 'file_sim_c'
+    ];
+    
+    fileFields.forEach(field => {
+      if (candidate[field]) {
+        candidate[field] = normalizeFilePath(candidate[field]);
+      }
+    });
+
     // Menghitung total pengalaman kerja (dalam bulan)
     let totalExperienceMonths = 0;
     sanitizedExperiences.forEach((exp: any) => {
@@ -362,7 +400,6 @@ export const get = async (req: Request, res: Response) => {
 /**
  * Mengubah status kandidat dan mengirim notifikasi email jika diperlukan
  */
-// Update candidate status
 export const updateStatus = async (req: Request, res: Response) => {
   if (req.method !== "PUT") {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -441,10 +478,6 @@ export const updateStatus = async (req: Request, res: Response) => {
         
         const candidateData = (candidateResult as any[])[0];
         
-        // Use direct imports instead of require
-        // This is important to note that we're using the candidateStatusEmail function 
-        // that's defined in this same file, not importing from elsewhere
-        
         // Prepare email content
         const emailContent = candidateStatusEmail({
           full_name: candidateData.full_name || '',
@@ -464,7 +497,6 @@ export const updateStatus = async (req: Request, res: Response) => {
         // Send email notification
         console.log(`Attempting to send ${status === '10' ? 'acceptance' : 'rejection'} email to: ${candidateData.email}`);
         
-        // Use the imported sendEmailNotification from the module path without require
         const emailSent = await sendEmailNotification(emailData);
 
         if (!emailSent) {

@@ -102,7 +102,6 @@ export const get = async (req: Request, res: Response) => {
 };
 
 // Update a career area
-
 export const put = async (req: Request, res: Response): Promise<Response> => {
   if (req.method !== "PUT") {
     return res.status(405).json({ error: "Method Not Allowed" });
@@ -180,7 +179,6 @@ export const put = async (req: Request, res: Response): Promise<Response> => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
 
 // Delete a career area
 export const del = async (req: Request, res: Response) => {

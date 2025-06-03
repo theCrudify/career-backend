@@ -268,15 +268,20 @@ export const get = async (req: Request, res: Response) => {
  * Update status kandidat secara massal
  */
 export const post = async (req: Request, res: Response) => {
+  console.log("📩 Incoming request...");
+
   if (req.method !== "POST") {
+    console.warn("❌ Method not allowed:", req.method);
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
   try {
     const { candidate_ids, status, feedback, user_id } = req.body;
+    console.log("📦 Request body:", { candidate_ids, status, feedback, user_id });
 
     // Validasi data yang diperlukan
     if (!candidate_ids || !candidate_ids.length || !status) {
+      console.warn("⚠️ Missing required fields");
       return res.status(400).json({ 
         error: "Missing required fields. Candidate IDs and status are required." 
       });
@@ -284,18 +289,21 @@ export const post = async (req: Request, res: Response) => {
 
     // Validasi status yang diinput
     if (!['1', '2', '3', '5', '6', '7', '8', '10'].includes(status)) {
+      console.warn("⚠️ Invalid status code:", status);
       return res.status(400).json({ 
         error: "Invalid status code" 
       });
     }
 
-    // Update status kandidat
     const updateResults = [];
     const timestamp = new Date();
 
+    console.log("🔄 Starting candidate updates...");
+
     for (const id of candidate_ids) {
       try {
-        // Update status kandidat
+        console.log(`🔧 Updating candidate ID ${id}...`);
+
         const updatedCandidate = await db.tr_candidate_list.update({
           where: { id: parseInt(id) },
           data: { 
@@ -303,7 +311,6 @@ export const post = async (req: Request, res: Response) => {
           }
         });
 
-        // Catat log perubahan status
         await db.tr_candidate_log.create({
           data: {
             candidate_list_id: parseInt(id),
@@ -315,13 +322,15 @@ export const post = async (req: Request, res: Response) => {
           }
         });
 
+        console.log(`✅ Candidate ID ${id} updated successfully.`);
+
         updateResults.push({
           id: id,
           success: true,
           message: "Status updated successfully"
         });
       } catch (error) {
-        console.error(`Error updating candidate ${id}:`, error);
+        console.error(`❌ Error updating candidate ${id}:`, error);
         updateResults.push({
           id: id,
           success: false,
@@ -330,19 +339,21 @@ export const post = async (req: Request, res: Response) => {
       }
     }
 
-    // Hitung statistik hasil operasi
     const successCount = updateResults.filter(result => result.success).length;
     const failureCount = updateResults.filter(result => !result.success).length;
+
+    console.log(`🏁 Finished update. Success: ${successCount}, Failed: ${failureCount}`);
 
     return res.status(200).json({
       message: `Updated ${successCount} candidates successfully, ${failureCount} failed`,
       results: updateResults
     });
   } catch (error) {
-    console.error("Error updating candidate statuses:", error);
+    console.error("🔥 Unexpected error:", error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 
 /**
  * Mendapatkan daftar kandidat yang belum dibaca (unread)

@@ -14,26 +14,28 @@ const convertBigIntToString = (data: any) => {
 };
 
 /**
- * Helper function untuk normalize file path
+ * Helper function untuk normalize file path - UPDATED VERSION
  */
 const normalizeFilePath = (filePath: string | null): string | null => {
   if (!filePath) return null;
   
   // Remove leading slash if exists
-  const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+  let cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
   
-  // If path already starts with proper format, return as is
+  // Remove app/public/ prefix if exists (frontend will add base URL)
   if (cleanPath.startsWith('app/public/')) {
-    return cleanPath;
+    cleanPath = cleanPath.substring('app/public/'.length);
   }
   
-  // If path starts with upload/, add app/public/ prefix
-  if (cleanPath.startsWith('upload/')) {
-    return `app/public/${cleanPath}`;
+  // Ensure upload/ prefix for file paths that look like images
+  if (!cleanPath.startsWith('upload/') && 
+      (cleanPath.includes('.jpg') || cleanPath.includes('.png') || 
+       cleanPath.includes('.jpeg') || cleanPath.includes('.gif') || 
+       cleanPath.includes('.webp') || cleanPath.includes('.jfif'))) {
+    return `upload/${cleanPath}`;
   }
   
-  // Default format for other paths
-  return `app/public/upload/${cleanPath}`;
+  return cleanPath;
 };
 
 /**
@@ -196,6 +198,7 @@ export const get = async (req: Request, res: Response) => {
     sanitizedData.forEach((candidate: any) => {
       if (candidate.file_foto) {
         candidate.file_foto = normalizeFilePath(candidate.file_foto);
+        console.log(`Normalized file path for ${candidate.full_name}: ${candidate.file_foto}`);
       }
     });
 
@@ -353,7 +356,6 @@ export const post = async (req: Request, res: Response) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
 
 /**
  * Mendapatkan daftar kandidat yang belum dibaca (unread)
@@ -534,7 +536,6 @@ export const getStatistics = async (req: Request, res: Response) => {
 /**
  * Mengubah status kandidat dan mengirim notifikasi email jika diperlukan
  */
-// Update candidate status
 export const updateStatus = async (req: Request, res: Response) => {
   if (req.method !== "PUT") {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -613,10 +614,6 @@ export const updateStatus = async (req: Request, res: Response) => {
         
         const candidateData = (candidateResult as any[])[0];
         
-        // Use direct imports instead of require
-        // This is important to note that we're using the candidateStatusEmail function 
-        // that's defined in this same file, not importing from elsewhere
-        
         // Prepare email content
         const emailContent = candidateStatusEmail({
           full_name: candidateData.full_name || '',
@@ -636,7 +633,6 @@ export const updateStatus = async (req: Request, res: Response) => {
         // Send email notification
         console.log(`Attempting to send ${status === '10' ? 'acceptance' : 'rejection'} email to: ${candidateData.email}`);
         
-        // Use the imported sendEmailNotification from the module path without require
         const emailSent = await sendEmailNotification(emailData);
 
         if (!emailSent) {
@@ -796,6 +792,8 @@ export const scheduleInterview = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+
 
 // Template email untuk notifikasi status kandidat
 function candidateStatusEmail(data: {
